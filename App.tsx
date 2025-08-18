@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { DiaryEntry } from './types';
 import { analyzeBrowsingHistory } from './services/geminiService';
@@ -44,10 +45,12 @@ const translations = {
     // How-to guide
     howItWorks: 'Nasıl Çalışır?',
     howToPrompt: 'Size en uygun yöntemi seçin:',
-    method1: 'Yöntem 1: Dosya Yükle (.csv)',
-    method1Desc: 'Tarayıcınız için "History Trends Unlimited" gibi bir eklentiyle geçmişinizi .csv olarak indirin ve aşağıdaki "Dosya Yükle" sekmesinden yükleyin.',
-    method2: 'Yöntem 2: Kopyala & Yapıştır',
-    method2Desc: 'Tarayıcı geçmişi sayfanızı açın (genellikle Ctrl+H), analiz etmek istediğiniz aktiviteleri seçip kopyalayın ve "Metin Yapıştır" sekmesindeki alana yapıştırın.',
+    method1: 'Yöntem 1: Otomatik Dışa Aktarma (Önerilen)',
+    method1Desc: 'Geçmişinizi kolayca <code>.csv</code> dosyasına dönüştürmek için geliştirdiğimiz aracı indirin. İndirdiğiniz klasördeki <strong>gui_gecmis_export.py</strong> uygulamasını çalıştırın, tarayıcınızı seçin ve dosyayı dışa aktarın. Ardından oluşturulan dosyayı aşağıdaki "Dosya Yükle" sekmesinden yükleyin. <a href="/history-exporter.zip" download class="font-bold text-cyan-600 dark:text-cyan-400 hover:underline">[Aracı İndir (history-exporter.zip)]</a>',
+    method2: 'Yöntem 2: Eklenti ile Dosya Yükle (.csv)',
+    method2Desc: 'Tarayıcınız için "History Trends Unlimited" gibi bir eklentiyle geçmişinizi .csv olarak indirin ve aşağıdaki "Dosya Yükle" sekmesinden yükleyin.',
+    method3: 'Yöntem 3: Kopyala & Yapıştır',
+    method3Desc: 'Tarayıcı geçmişi sayfanızı açın (genellikle Ctrl+H), analiz etmek istediğiniz aktiviteleri seçip kopyalayın ve "Metin Yapıştır" sekmesindeki alana yapıştırın.',
     analyzeStep: 'Analiz Edin:',
     analyzeStepDesc: '"Günümü Analiz Et" butonuna tıklayarak kişisel dijital günlüğünüzün oluşturulmasını bekleyin.',
     privacyNote: 'Gizlilik Notu',
@@ -134,10 +137,12 @@ const translations = {
     // How-to guide
     howItWorks: 'How It Works',
     howToPrompt: 'Choose the method that suits you best:',
-    method1: 'Method 1: Upload File (.csv)',
-    method1Desc: 'Download your history as a .csv file using a browser extension like "History Trends Unlimited" and upload it from the "Upload File" tab below.',
-    method2: 'Method 2: Copy & Paste',
-    method2Desc: 'Open your browser history page (usually Ctrl+H), select and copy the activities you want to analyze, and paste them into the "Paste Text" tab.',
+    method1: 'Method 1: Automatic Export (Recommended)',
+    method1Desc: 'Download our tool to easily export your history to a <code>.csv</code> file. Run the <strong>gui_gecmis_export.py</strong> application in the downloaded folder, select your browser, and export the file. Then, upload the generated file from the "Upload File" tab below. <a href="/history-exporter.zip" download class="font-bold text-cyan-600 dark:text-cyan-400 hover:underline">[Download Tool (history-exporter.zip)]</a>',
+    method2: 'Method 2: Upload File via Extension (.csv)',
+    method2Desc: 'Download your history as a .csv file using a browser extension like "History Trends Unlimited" and upload it from the "Upload File" tab below.',
+    method3: 'Method 3: Copy & Paste',
+    method3Desc: 'Open your browser history page (usually Ctrl+H), select and copy the activities you want to analyze, and paste them into the "Paste Text" tab.',
     analyzeStep: 'Analyze:',
     analyzeStepDesc: 'Click the "Analyze My Day" button and wait for your personal digital diary to be created.',
     privacyNote: 'Privacy Note',
@@ -206,7 +211,7 @@ const translations = {
 
 /**
  * Safely parses a YYYY-MM-DD string into a local Date object at midnight,
- * avoiding timezone issues with `new Date('YYYY-MM-DD')`.
+ * avoiding timezone issues with `new Date('YYYY-MM-DD')`...
  */
 const parseISODate = (isoDate: string): Date => {
     const [year, month, day] = isoDate.split('-').map(Number);
@@ -420,6 +425,10 @@ const App: React.FC = () => {
                       <li>
                         <strong>{t('method2')}</strong><br/>
                         <span dangerouslySetInnerHTML={{ __html: t('method2Desc') }} />
+                      </li>
+                       <li>
+                        <strong>{t('method3')}</strong><br/>
+                        <span dangerouslySetInnerHTML={{ __html: t('method3Desc') }} />
                       </li>
                       <li>
                         <strong>{t('analyzeStep')}</strong> {t('analyzeStepDesc')}
