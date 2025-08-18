@@ -1,6 +1,5 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import { DiaryEntry } from '../types';
+import { DiaryEntry, OverallAnalysis, ScoreArea } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
@@ -10,37 +9,39 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const model = "gemini-2.5-flash";
 
+const scoreAreaOptions: ScoreArea[] = ['Productivity', 'Learning', 'Discovery', 'Entertainment'];
+
 const diaryEntrySchema = {
   type: Type.OBJECT,
   properties: {
     date: {
       type: Type.STRING,
-      description: "Analiz edilen geçmiş verilerinin tarihi. Örneğin: '25 Temmuz 2024, Perşembe'."
+      description: "The date of the analyzed history data. Format it based on the requested language's locale. For example: 'July 25, 2024, Thursday' for English, or '25 Temmuz 2024, Perşembe' for Turkish."
     },
     title: {
       type: Type.STRING,
-      description: "Günün özeti için ilgi çekici ve yaratıcı bir başlık. Örneğin 'Kod, Haber ve Keşif Dolu Bir Gün'."
+      description: "An engaging and creative title summarizing the day. For example, 'A Day of Code, News, and Discovery'."
     },
     summary: {
       type: Type.OBJECT,
-      description: "Günü zaman dilimlerine (sabah, öğlen, akşam) göre ayıran hikaye tarzı bir özet. Samimi bir dil kullan.",
+      description: "A narrative summary dividing the day into time segments (morning, noon, evening). Use a friendly tone.",
       properties: {
-        sabah: { type: Type.STRING, description: "Sabah saatlerindeki aktivitelerin özeti." },
-        oglen: { type: Type.STRING, description: "Öğlen saatlerindeki aktivitelerin özeti." },
-        aksam: { type: Type.STRING, description: "Akşam saatlerindeki aktivitelerin özeti." }
+        sabah: { type: Type.STRING, description: "Summary of morning activities." },
+        oglen: { type: Type.STRING, description: "Summary of noon activities." },
+        aksam: { type: Type.STRING, description: "Summary of evening activities." }
       },
       required: ["sabah", "oglen", "aksam"]
     },
     highlights: {
       type: Type.ARRAY,
-      description: "Günün en önemli 3-4 aktivitesini ikon adıyla birlikte listele.",
+      description: "List the 3-4 most important activities of the day along with an icon name.",
       items: {
         type: Type.OBJECT,
         properties: {
-          activity: { type: Type.STRING, description: "Öne çıkan aktivitenin kısa açıklaması." },
+          activity: { type: Type.STRING, description: "A short description of the highlighted activity." },
           icon: {
             type: Type.STRING,
-            description: "Aktiviteyi en iyi temsil eden ikon adı. Seçenekler: 'code', 'news', 'shop', 'learn', 'entertainment', 'social', 'research', 'other'."
+            description: "The icon name that best represents the activity. Options: 'code', 'news', 'shop', 'learn', 'entertainment', 'social', 'research', 'other'."
           }
         },
         required: ["activity", "icon"]
@@ -48,17 +49,17 @@ const diaryEntrySchema = {
     },
     categories: {
       type: Type.ARRAY,
-      description: "URL'lere göre aktivite kategorilerinin bir listesi ve her kategorideki aktivite sayısı.",
+      description: "A list of activity categories based on URLs and the count of activities in each.",
       items: {
         type: Type.OBJECT,
         properties: {
           category: {
             type: Type.STRING,
-            description: "Aktivitenin kategorisi (örneğin: 'Yazılım Geliştirme', 'Haberler', 'Sosyal Medya', 'Eğitim', 'Alışveriş')."
+            description: "The category of the activity (e.g., 'Software Development', 'News', 'Social Media', 'Education', 'Shopping')."
           },
           activities: {
             type: Type.INTEGER,
-            description: "Bu kategorideki ilgili URL ziyaretlerinin sayısı."
+            description: "The number of relevant URL visits in this category."
           }
         },
         required: ["category", "activities"]
@@ -66,13 +67,13 @@ const diaryEntrySchema = {
     },
     scores: {
         type: Type.ARRAY,
-        description: "Günün aktivitelerine göre farklı alanlarda 5 üzerinden puanlama ve kısa geri bildirim.",
+        description: "Scoring out of 5 and brief feedback for different areas based on the day's activities.",
         items: {
             type: Type.OBJECT,
             properties: {
-                area: { type: Type.STRING, description: "Puanlama alanı. Seçenekler: 'Üretkenlik', 'Öğrenme', 'Keşif', 'Eğlence'."},
-                score: { type: Type.INTEGER, description: "Aktivite alanının 5 üzerinden puanı."},
-                feedback: { type: Type.STRING, description: "Puana dayalı kısa, motive edici bir geri bildirim."}
+                area: { type: Type.STRING, description: `The scoring area. Options must be one of: ${scoreAreaOptions.join(', ')}.`},
+                score: { type: Type.INTEGER, description: "The score for the activity area out of 5."},
+                feedback: { type: Type.STRING, description: "A short, motivating feedback based on the score."}
             },
             required: ["area", "score", "feedback"]
         }
@@ -86,22 +87,92 @@ const responseSchema = {
     items: diaryEntrySchema
 };
 
+const overallAnalysisSchema = {
+  type: Type.OBJECT,
+  properties: {
+    persona: {
+      type: Type.OBJECT,
+      description: "A digital persona profile based on the user's overall digital habits.",
+      properties: {
+        title: { type: Type.STRING, description: "Persona title (e.g., 'Digital Explorer', 'Focused Developer')." },
+        description: { type: Type.STRING, description: "A short, engaging description of the persona." },
+        icon: { type: Type.STRING, description: "The icon that best represents the persona. Options: 'Discovery', 'Code', 'Learn', 'Social', 'Entertainment', 'Other'." },
+      },
+      required: ["title", "description", "icon"]
+    },
+    trends: {
+      type: Type.ARRAY,
+      description: "2-3 significant trends observed in the user's habits over time.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING, description: "Title of the trend (e.g., 'Increasing Focus on Learning')." },
+          description: { type: Type.STRING, description: "A brief explanation of the trend." },
+        },
+        required: ["title", "description"]
+      }
+    },
+    recommendations: {
+      type: Type.ARRAY,
+      description: "2-3 personalized, actionable recommendations to improve the user's digital well-being.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING, description: "Title of the recommendation (e.g., 'Balance Entertainment and Productivity')." },
+          description: { type: Type.STRING, description: "A brief explanation of how to implement the recommendation." },
+        },
+        required: ["title", "description"]
+      }
+    }
+  },
+  required: ["persona", "trends", "recommendations"]
+};
 
-export const analyzeBrowsingHistory = async (history: string): Promise<DiaryEntry[]> => {
-  const prompt = `
-    Aşağıdaki tarayıcı geçmişi verilerini analiz et ve kullanıcı için kişisel bir dijital günlük özeti oluştur.
+const parseJsonResponse = (jsonText: string) => {
+  if (!jsonText) {
+    throw new Error("Received an empty response from the API. Please try again.");
+  }
+  try {
+    return JSON.parse(jsonText);
+  } catch (error) {
+    console.error("JSON parsing error:", error);
+    throw new Error("The AI returned an unexpected format. Please check your input and try again.");
+  }
+};
+
+const getPrompts = (lang: 'tr' | 'en') => {
+    const targetLanguage = lang === 'tr' ? 'Turkish' : 'English';
+    return {
+        analyze: `
+            Analyze the following browser history data and create a personal digital diary summary for the user.
+            
+            Instructions:
+            1.  Carefully examine the data. If there are multiple days in the data, create a separate diary object for each day. Clearly distinguish the dates.
+            2.  For each day:
+                a. Ignore repetitive and irrelevant entries (ads, redirects, CDNs, etc.).
+                b. Group similar activities (e.g., multiple GitHub visits as 'Software Development', different news sites as 'News').
+                c. Narrate the daily summary by dividing it into sections based on the timeline (morning, noon, evening).
+                d. Identify the 3-4 most important activities of the day as 'highlights' and assign an appropriate icon name.
+                e. Analyze the activities and score them out of 5 in the areas of 'Productivity', 'Learning', 'Discovery', and 'Entertainment', and write a short, constructive 'feedback' for each. The 'area' field must be one of these exact English words.
+            3.  Return the response in the requested JSON format, in ${targetLanguage}. If there are multiple days, return an array of JSON objects.
+        `,
+        overall: `
+            Below is a JSON array of the user's past digital diaries. Analyze this data to create a summary of the user's overall digital habits.
+
+            Instructions:
+            1.  **Determine a Digital Persona**: Based on the user's most dominant activities, create a creative digital persona profile (e.g., 'Digital Explorer', 'Focused Developer', 'Curious Learner'). Define this persona with a title, a short description, and an appropriate icon name.
+            2.  **Identify Trends**: Compare activity data over time to identify 2-3 significant trends. For example, "Recent increase in software development activities" or "Weekend consumption of entertainment-focused content." Present each trend with a title and description.
+            3.  **Provide Recommendations**: Based on the analysis, provide 2-3 personalized and actionable recommendations to improve the user's digital well-being or productivity. The recommendations should be positive and encouraging. Present each recommendation with a title and description.
+            4.  Return the response in the requested JSON format, in ${targetLanguage}.
+        `
+    }
+}
+
+export const analyzeBrowsingHistory = async (history: string, lang: 'tr' | 'en'): Promise<DiaryEntry[]> => {
+    const prompt = `
+    ${getPrompts(lang).analyze}
     
-    Talimatlar:
-    1.  Verileri dikkatlice incele. Veride birden fazla gün varsa, her gün için ayrı bir günlük nesnesi oluştur. Tarihleri belirgin bir şekilde ayır.
-    2.  Her gün için:
-        a. Tekrarlanan ve alakasız girişleri (reklamlar, yönlendirmeler, cdn'ler vb.) göz ardı et.
-        b. Benzer aktiviteleri gruplandır (örneğin, birden fazla GitHub ziyareti 'Yazılım Geliştirme' olarak, farklı haber siteleri 'Haberler' olarak).
-        c. Günlük özeti, zaman akışına göre (sabah, öğlen, akşam) bölümlere ayırarak hikayeleştir.
-        d. Günün en önemli 3-4 aktivitesini 'highlights' olarak belirle ve uygun bir ikon adı ata.
-        e. Aktiviteleri analiz ederek 'Üretkenlik', 'Öğrenme', 'Keşif' ve 'Eğlence' alanlarında 5 üzerinden puanla ve her biri için kısa, yapıcı bir 'feedback' yaz.
-    3.  Cevabı istenen JSON formatında, Türkçe olarak döndür. Birden fazla gün varsa, JSON nesnelerinden oluşan bir dizi döndür.
-    
-    Tarayıcı Geçmişi Verisi:
+    Browser History Data:
     ---
     ${history}
     ---
@@ -118,29 +189,50 @@ export const analyzeBrowsingHistory = async (history: string): Promise<DiaryEntr
       },
     });
 
-    const jsonText = response.text.trim();
-    if (!jsonText) {
-      throw new Error("API'den boş yanıt alındı. Lütfen tekrar deneyin.");
-    }
-    
-    const parsedData: DiaryEntry[] = JSON.parse(jsonText);
+    const parsedData = parseJsonResponse(response.text.trim());
 
-    // Ensure the response is an array
     if (!Array.isArray(parsedData)) {
-        // If the API returned a single object, wrap it in an array
-        if (typeof parsedData === 'object' && parsedData !== null) {
-            return [parsedData as any]; 
-        }
-        throw new Error("API'den beklenen dizi formatı alınamadı.");
+      if (typeof parsedData === 'object' && parsedData !== null) {
+          return [parsedData as any]; 
+      }
+      throw new Error("Expected array format from API was not received.");
     }
-
     return parsedData;
 
   } catch (error) {
     console.error("Gemini API Error:", error);
-    if (error instanceof Error && error.message.includes("JSON")) {
-       throw new Error("Yapay zeka beklenmedik bir formatta yanıt verdi. Lütfen girdiğinizi kontrol edip tekrar deneyin.");
-    }
-    throw new Error("Yapay zeka ile iletişim kurarken bir sorun oluştu.");
+    if (error instanceof Error) throw error;
+    throw new Error("A problem occurred while communicating with the AI.");
+  }
+};
+
+
+export const analyzeOverallHabits = async (entries: DiaryEntry[], lang: 'tr' | 'en'): Promise<OverallAnalysis> => {
+  const prompt = `
+    ${getPrompts(lang).overall}
+
+    Past Diary Data:
+    ---
+    ${JSON.stringify(entries, null, 2)}
+    ---
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: overallAnalysisSchema,
+        temperature: 0.8,
+      },
+    });
+    
+    return parseJsonResponse(response.text.trim());
+
+  } catch (error) {
+    console.error("Gemini API Error (Overall Analysis):", error);
+    if (error instanceof Error) throw error;
+    throw new Error("A problem occurred with the AI during the overall analysis.");
   }
 };
