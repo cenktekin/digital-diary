@@ -7,22 +7,22 @@ import DiaryDisplay from './components/DiaryDisplay';
 import { LogoIcon, PrivacyIcon, InfoIcon } from './components/icons';
 
 const App: React.FC = () => {
-  const [diaryEntry, setDiaryEntry] = useState<DiaryEntry | null>(null);
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleAnalyze = useCallback(async (historyData: string) => {
     if (!historyData.trim()) {
-      setError('Yüklenen dosya boş veya geçersiz.');
+      setError('Lütfen analiz için geçerli bir veri girin (dosya veya metin).');
       return;
     }
     setIsLoading(true);
     setError(null);
-    setDiaryEntry(null);
+    setDiaryEntries(null);
 
     try {
       const result = await analyzeBrowsingHistory(historyData);
-      setDiaryEntry(result);
+      setDiaryEntries(result);
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : 'Bilinmeyen bir hata oluştu.';
       setError(`Analiz sırasında bir hata oluştu: ${errorMessage}`);
@@ -51,14 +51,19 @@ const App: React.FC = () => {
                <InfoIcon className="w-6 h-6 text-cyan-400 flex-shrink-0 mt-1" />
                <div>
                   <h2 className="text-lg font-semibold text-slate-200">Nasıl Çalışır?</h2>
-                  <ol className="list-decimal list-inside text-slate-400 text-sm space-y-1 mt-1">
+                  <p className="text-slate-400 text-sm mt-1">
+                    Size en uygun yöntemi seçin:
+                  </p>
+                  <ol className="list-decimal list-inside text-slate-400 text-sm space-y-2 mt-2">
                     <li>
-                      <strong>Geçmişinizi Dışa Aktarın:</strong> Tarayıcınız için "History Trends Unlimited" veya "Export History" gibi bir eklenti kullanarak tarama geçmişinizi <strong className="text-amber-300">.csv</strong> dosyası olarak indirin.
+                      <strong>Yöntem 1: Dosya Yükle (.csv)</strong><br/>
+                      Tarayıcınız için "History Trends Unlimited" gibi bir eklentiyle geçmişinizi <strong className="text-amber-300">.csv</strong> olarak indirin ve aşağıdaki "Dosya Yükle" sekmesinden yükleyin.
                     </li>
                     <li>
-                      <strong>Dosyayı Yükleyin:</strong> İndirdiğiniz .csv dosyasını aşağıdaki alana sürükleyip bırakın veya tıklayarak seçin.
+                      <strong>Yöntem 2: Kopyala & Yapıştır</strong><br/>
+                      Tarayıcı geçmişi sayfanızı açın (genellikle <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd>+<kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">H</kbd>), analiz etmek istediğiniz aktiviteleri seçip kopyalayın ve "Metin Yapıştır" sekmesindeki alana yapıştırın.
                     </li>
-                    <li>
+                     <li>
                       <strong>Analiz Edin:</strong> "Günümü Analiz Et" butonuna tıklayarak kişisel dijital günlüğünüzün oluşturulmasını bekleyin.
                     </li>
                   </ol>
@@ -69,7 +74,7 @@ const App: React.FC = () => {
               <div>
                 <h2 className="text-lg font-semibold text-slate-200">Gizlilik Notu</h2>
                 <p className="text-slate-400 text-sm">
-                  Yüklediğiniz dosya, analiz amacıyla Google Gemini API'sine gönderilir ve sunucularımızda saklanmaz. Tarayıcı geçmişiniz size özeldir ve bu uygulama gizliliğinize saygı duyar.
+                  Girdiğiniz veriler, analiz amacıyla Google Gemini API'sine gönderilir ve sunucularımızda saklanmaz. Tarayıcı geçmişiniz size özeldir ve bu uygulama gizliliğinize saygı duyar.
                 </p>
               </div>
             </div>
@@ -94,9 +99,9 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {diaryEntry && !isLoading && (
+          {diaryEntries && !isLoading && (
             <div className="mt-8 animate-fade-in-up">
-              <DiaryDisplay entry={diaryEntry} />
+              <DiaryDisplay entries={diaryEntries} />
             </div>
           )}
         </main>

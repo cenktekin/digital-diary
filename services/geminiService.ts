@@ -10,16 +10,41 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const model = "gemini-2.5-flash";
 
-const responseSchema = {
+const diaryEntrySchema = {
   type: Type.OBJECT,
   properties: {
+    date: {
+      type: Type.STRING,
+      description: "Analiz edilen geçmiş verilerinin tarihi. Örneğin: '25 Temmuz 2024, Perşembe'."
+    },
     title: {
       type: Type.STRING,
-      description: "Günün özeti için ilgi çekici ve yaratıcı bir başlık. Örneğin 'Kod ve Kedi Merakıyla Dolu Bir Gün'."
+      description: "Günün özeti için ilgi çekici ve yaratıcı bir başlık. Örneğin 'Kod, Haber ve Keşif Dolu Bir Gün'."
     },
     summary: {
-      type: Type.STRING,
-      description: "Kullanıcının günü için kişisel ve hikaye tarzında bir özet. Birinci tekil şahıs (sen) kullanarak samimi bir dil kullan. Önemli aktivitelere ve harcanan zamana odaklan. Örneğin: 'Bugün GitHub'da Roo Code projesine göz atarak güne başladın...'."
+      type: Type.OBJECT,
+      description: "Günü zaman dilimlerine (sabah, öğlen, akşam) göre ayıran hikaye tarzı bir özet. Samimi bir dil kullan.",
+      properties: {
+        sabah: { type: Type.STRING, description: "Sabah saatlerindeki aktivitelerin özeti." },
+        oglen: { type: Type.STRING, description: "Öğlen saatlerindeki aktivitelerin özeti." },
+        aksam: { type: Type.STRING, description: "Akşam saatlerindeki aktivitelerin özeti." }
+      },
+      required: ["sabah", "oglen", "aksam"]
+    },
+    highlights: {
+      type: Type.ARRAY,
+      description: "Günün en önemli 3-4 aktivitesini ikon adıyla birlikte listele.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          activity: { type: Type.STRING, description: "Öne çıkan aktivitenin kısa açıklaması." },
+          icon: {
+            type: Type.STRING,
+            description: "Aktiviteyi en iyi temsil eden ikon adı. Seçenekler: 'code', 'news', 'shop', 'learn', 'entertainment', 'social', 'research', 'other'."
+          }
+        },
+        required: ["activity", "icon"]
+      }
     },
     categories: {
       type: Type.ARRAY,
@@ -38,20 +63,43 @@ const responseSchema = {
         },
         required: ["category", "activities"]
       }
+    },
+    scores: {
+        type: Type.ARRAY,
+        description: "Günün aktivitelerine göre farklı alanlarda 5 üzerinden puanlama ve kısa geri bildirim.",
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                area: { type: Type.STRING, description: "Puanlama alanı. Seçenekler: 'Üretkenlik', 'Öğrenme', 'Keşif', 'Eğlence'."},
+                score: { type: Type.INTEGER, description: "Aktivite alanının 5 üzerinden puanı."},
+                feedback: { type: Type.STRING, description: "Puana dayalı kısa, motive edici bir geri bildirim."}
+            },
+            required: ["area", "score", "feedback"]
+        }
     }
   },
-  required: ["title", "summary", "categories"]
+  required: ["date", "title", "summary", "highlights", "categories", "scores"]
 };
 
-export const analyzeBrowsingHistory = async (history: string): Promise<DiaryEntry> => {
+const responseSchema = {
+    type: Type.ARRAY,
+    items: diaryEntrySchema
+};
+
+
+export const analyzeBrowsingHistory = async (history: string): Promise<DiaryEntry[]> => {
   const prompt = `
     Aşağıdaki tarayıcı geçmişi verilerini analiz et ve kullanıcı için kişisel bir dijital günlük özeti oluştur.
     
     Talimatlar:
-    1.  Verileri dikkatlice incele. Tekrarlanan ve alakasız girişleri (reklamlar, yönlendirmeler, cdn'ler vb.) göz ardı et.
-    2.  Benzer aktiviteleri gruplandır (örneğin, birden fazla GitHub ziyareti 'Yazılım Geliştirme' olarak, farklı haber siteleri 'Haberler' olarak).
-    3.  Kullanıcının gününü anlatan, samimi ve kişisel bir hikaye oluştur. Önemli aktivite gruplarına odaklan.
-    4.  Cevabı istenen JSON formatında, Türkçe olarak döndür.
+    1.  Verileri dikkatlice incele. Veride birden fazla gün varsa, her gün için ayrı bir günlük nesnesi oluştur. Tarihleri belirgin bir şekilde ayır.
+    2.  Her gün için:
+        a. Tekrarlanan ve alakasız girişleri (reklamlar, yönlendirmeler, cdn'ler vb.) göz ardı et.
+        b. Benzer aktiviteleri gruplandır (örneğin, birden fazla GitHub ziyareti 'Yazılım Geliştirme' olarak, farklı haber siteleri 'Haberler' olarak).
+        c. Günlük özeti, zaman akışına göre (sabah, öğlen, akşam) bölümlere ayırarak hikayeleştir.
+        d. Günün en önemli 3-4 aktivitesini 'highlights' olarak belirle ve uygun bir ikon adı ata.
+        e. Aktiviteleri analiz ederek 'Üretkenlik', 'Öğrenme', 'Keşif' ve 'Eğlence' alanlarında 5 üzerinden puanla ve her biri için kısa, yapıcı bir 'feedback' yaz.
+    3.  Cevabı istenen JSON formatında, Türkçe olarak döndür. Birden fazla gün varsa, JSON nesnelerinden oluşan bir dizi döndür.
     
     Tarayıcı Geçmişi Verisi:
     ---
@@ -75,8 +123,17 @@ export const analyzeBrowsingHistory = async (history: string): Promise<DiaryEntr
       throw new Error("API'den boş yanıt alındı. Lütfen tekrar deneyin.");
     }
     
-    // Attempt to parse the JSON string from the API response
-    const parsedData: DiaryEntry = JSON.parse(jsonText);
+    const parsedData: DiaryEntry[] = JSON.parse(jsonText);
+
+    // Ensure the response is an array
+    if (!Array.isArray(parsedData)) {
+        // If the API returned a single object, wrap it in an array
+        if (typeof parsedData === 'object' && parsedData !== null) {
+            return [parsedData as any]; 
+        }
+        throw new Error("API'den beklenen dizi formatı alınamadı.");
+    }
+
     return parsedData;
 
   } catch (error) {
