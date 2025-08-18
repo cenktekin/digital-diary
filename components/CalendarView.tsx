@@ -5,18 +5,32 @@ interface CalendarViewProps {
   savedEntries: DiaryEntry[];
   t: (key: string) => string;
   lang: 'tr' | 'en';
+  onSelectEntry: (entry: DiaryEntry) => void;
 }
 
 type CalendarMode = 'month' | 'year';
 
-const CalendarView: React.FC<CalendarViewProps> = ({ savedEntries, t, lang }) => {
+/**
+ * Safely parses a YYYY-MM-DD string into a local Date object at midnight,
+ * avoiding timezone issues with `new Date('YYYY-MM-DD')`.
+ */
+const parseISODate = (isoDate: string): Date => {
+    const [year, month, day] = isoDate.split('-').map(Number);
+    return new Date(year, month - 1, day);
+};
+
+const CalendarView: React.FC<CalendarViewProps> = ({ savedEntries, t, lang, onSelectEntry }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [mode, setMode] = useState<CalendarMode>('month');
 
-  const entriesByDateStr = useMemo(() => new Map(savedEntries.map(entry => [
-    new Date(entry.date).toDateString(),
-    entry
-  ])), [savedEntries]);
+  const entriesByDateStr = useMemo(() => {
+    const map = new Map<string, DiaryEntry>();
+    for (const entry of savedEntries) {
+        const date = parseISODate(entry.isoDate);
+        map.set(date.toDateString(), entry);
+    }
+    return map;
+  }, [savedEntries]);
   
   const getAvgScore = (entry: DiaryEntry | undefined) => {
       if (!entry || !entry.scores || entry.scores.length === 0) return 0;
@@ -71,7 +85,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ savedEntries, t, lang }) =>
                 return (
                     <div
                     key={day.toString()}
-                    className={`w-full h-20 sm:h-24 p-2 rounded-md transition-colors ${colorClass} ${entry ? 'cursor-pointer' : ''} flex flex-col text-white`}
+                    onClick={() => entry && onSelectEntry(entry)}
+                    className={`w-full h-20 sm:h-24 p-2 rounded-md transition-all ${colorClass} ${entry ? 'cursor-pointer transform hover:-translate-y-1' : ''} flex flex-col text-white`}
                     title={entry?.title || t('noData')}
                     >
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{day.getDate()}</span>

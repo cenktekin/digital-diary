@@ -1,6 +1,6 @@
 import { DiaryEntry, ScoreArea } from '../types';
 
-const randomElement = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+const randomElement = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
 const randomNumber = (min: number, max: number): number => Math.random() * (max - min) + min;
 
 const scoreAreas: ScoreArea[] = ['Productivity', 'Learning', 'Discovery', 'Entertainment'];
@@ -41,6 +41,8 @@ export const generateMockEntries = (lang: 'tr' | 'en'): DiaryEntry[] => {
             const date = new Date();
             date.setDate(today.getDate() - i);
 
+            const isoDate = date.toISOString().split('T')[0];
+
             const locale = lang === 'tr' ? 'tr-TR' : 'en-US';
             const formattedDate = date.toLocaleDateString(locale, {
                 year: 'numeric',
@@ -51,6 +53,7 @@ export const generateMockEntries = (lang: 'tr' | 'en'): DiaryEntry[] => {
 
             entries.push({
                 date: formattedDate,
+                isoDate: isoDate,
                 title: lang === 'tr' ? `Demo Günü: ${date.toLocaleDateString()}` : `Demo Day: ${date.toLocaleDateString()}`,
                 summary: {
                     sabah: lang === 'tr' ? 'Demo verisi için sabah özeti.' : 'Morning summary for demo data.',

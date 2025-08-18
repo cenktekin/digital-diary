@@ -35,12 +35,12 @@ export const getEntries = (): DiaryEntry[] => {
 
 export const saveEntry = (newEntry: DiaryEntry): void => {
   const entries = getEntries();
-  // Avoid duplicates by checking the date
-  const entryExists = entries.some(entry => new Date(entry.date).toDateString() === new Date(newEntry.date).toDateString());
+  // Avoid duplicates by checking the isoDate
+  const entryExists = entries.some(entry => entry.isoDate === newEntry.isoDate);
   if (!entryExists) {
     const updatedEntries = [...entries, newEntry];
-    // Sort entries by date for consistency
-    updatedEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Sort entries by isoDate for consistency. String comparison is safe for YYYY-MM-DD.
+    updatedEntries.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
     localStorage.setItem(ENTRIES_KEY, JSON.stringify(updatedEntries));
   }
 };

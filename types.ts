@@ -18,6 +18,7 @@ export interface Score {
 
 export interface DiaryEntry {
   date: string; // e.g., "July 25, 2024, Thursday"
+  isoDate: string; // e.g., "2024-07-25"
   title: string;
   summary: {
     sabah: string;

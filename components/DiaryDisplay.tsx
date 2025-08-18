@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { toPng } from 'html-to-image';
 import { DiaryEntry, Highlight, Score, ScoreArea } from '../types';
 import CategoryChart from './CategoryChart';
@@ -32,6 +32,15 @@ const scoreIcons: { [key in ScoreArea]: React.FC<React.SVGProps<SVGSVGElement>> 
   'Learning': LearnIcon,
   'Discovery': DiscoveryIcon,
   'Entertainment': EntertainmentIcon,
+};
+
+/**
+ * Safely parses a YYYY-MM-DD string into a local Date object at midnight,
+ * avoiding timezone issues with `new Date('YYYY-MM-DD')`.
+ */
+const parseISODate = (isoDate: string): Date => {
+    const [year, month, day] = isoDate.split('-').map(Number);
+    return new Date(year, month - 1, day);
 };
 
 const ScoreCard: React.FC<{ scoreItem: Score; t: (key: string) => string }> = ({ scoreItem, t }) => {
@@ -73,7 +82,10 @@ const DiaryDisplay: React.FC<DiaryDisplayProps> = ({ entries, onSave, isSaving, 
   }
   
   const selectedEntry = entries[selectedDayIndex];
-  const isAlreadySaved = savedDates.includes(new Date(selectedEntry.date).toDateString());
+  
+  const entryDate = useMemo(() => parseISODate(selectedEntry.isoDate), [selectedEntry.isoDate]);
+  
+  const isAlreadySaved = useMemo(() => savedDates.includes(entryDate.toDateString()), [savedDates, entryDate]);
 
   const handleDownloadPng = useCallback(() => {
     if (diaryRef.current === null) {
@@ -83,8 +95,7 @@ const DiaryDisplay: React.FC<DiaryDisplayProps> = ({ entries, onSave, isSaving, 
     toPng(diaryRef.current, { cacheBust: true, backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc' })
       .then((dataUrl) => {
         const link = document.createElement('a');
-        const safeDate = new Date(selectedEntry.date).toISOString().split('T')[0];
-        link.download = `digital-diary-${safeDate}.png`;
+        link.download = `digital-diary-${selectedEntry.isoDate}.png`;
         link.href = dataUrl;
         link.click();
       })
@@ -92,7 +103,7 @@ const DiaryDisplay: React.FC<DiaryDisplayProps> = ({ entries, onSave, isSaving, 
         console.error('Error creating PNG:', err);
         alert(t('errorPngCreation'));
       });
-  }, [diaryRef, selectedEntry.date, t]);
+  }, [diaryRef, selectedEntry.isoDate, t]);
 
   const handleCopyText = useCallback(() => {
     const textToCopy = `
@@ -121,8 +132,7 @@ const DiaryDisplay: React.FC<DiaryDisplayProps> = ({ entries, onSave, isSaving, 
         const isDarkMode = document.documentElement.classList.contains('dark');
         const dataUrl = await toPng(diaryRef.current, { cacheBust: true, backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc' });
         const blob = await (await fetch(dataUrl)).blob();
-        const safeDate = new Date(selectedEntry.date).toISOString().split('T')[0];
-        const file = new File([blob], `digital-diary-${safeDate}.png`, { type: 'image/png' });
+        const file = new File([blob], `digital-diary-${selectedEntry.isoDate}.png`, { type: 'image/png' });
 
         const shareData = {
             title: t('shareTitle', { date: selectedEntry.date }),
@@ -139,7 +149,7 @@ const DiaryDisplay: React.FC<DiaryDisplayProps> = ({ entries, onSave, isSaving, 
         console.error('Share error:', err);
         alert(t('errorShareDetailed'));
     }
-}, [selectedEntry.date, selectedEntry.title, t]);
+}, [selectedEntry.isoDate, selectedEntry.date, selectedEntry.title, t]);
 
   const ActionButtons: React.FC = () => (
       <div className="absolute -top-4 right-0 flex items-center gap-2 bg-slate-200 dark:bg-slate-800 p-2 rounded-full border border-slate-300 dark:border-slate-700 shadow-md">

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { DiaryEntry } from './types';
-import { analyzeBrowsingHistory, analyzeOverallHabits } from './services/geminiService';
+import { analyzeBrowsingHistory } from './services/geminiService';
 import * as storage from './services/storageService';
 
 import Header from './components/Header';
@@ -204,6 +204,17 @@ const translations = {
   }
 };
 
+/**
+ * Safely parses a YYYY-MM-DD string into a local Date object at midnight,
+ * avoiding timezone issues with `new Date('YYYY-MM-DD')`.
+ */
+const parseISODate = (isoDate: string): Date => {
+    const [year, month, day] = isoDate.split('-').map(Number);
+    // new Date(year, monthIndex, day)
+    return new Date(year, month - 1, day);
+};
+
+
 const App: React.FC = () => {
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -213,6 +224,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [savedEntries, setSavedEntries] = useState<DiaryEntry[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [viewingEntry, setViewingEntry] = useState<DiaryEntry | null>(null);
   
   const [theme, setTheme] = useState<Theme>(storage.getTheme());
   const [language, setLanguage] = useState<Language>(storage.getLanguage());
@@ -231,8 +243,11 @@ const App: React.FC = () => {
   useEffect(() => {
     // Apply theme
     const root = window.document.documentElement;
-    root.classList.remove(theme === 'light' ? 'dark' : 'light');
-    root.classList.add(theme);
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
     storage.saveTheme(theme);
   }, [theme]);
   
@@ -263,6 +278,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setDiaryEntries(null);
+    setViewingEntry(null);
 
     try {
       const result = await analyzeBrowsingHistory(historyData, language);
@@ -297,6 +313,8 @@ const App: React.FC = () => {
     setUser(null);
     setSavedEntries([]);
     setView('create');
+    setDiaryEntries(null);
+    setViewingEntry(null);
   };
 
   const handleSaveEntry = async (entryToSave: DiaryEntry) => {
@@ -318,16 +336,22 @@ const App: React.FC = () => {
     }
   };
   
+  const handleViewEntry = (entry: DiaryEntry) => {
+      setViewingEntry(entry);
+      setView('create');
+  }
+
   const handleToggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   const handleToggleLanguage = () => setLanguage(prev => prev === 'tr' ? 'en' : 'tr');
 
   const resetToCreate = () => {
     setDiaryEntries(null);
     setError(null);
+    setViewingEntry(null);
     setView('create');
   }
   
-  const savedDates = useMemo(() => savedEntries.map(e => new Date(e.date).toDateString()), [savedEntries]);
+  const savedDates = useMemo(() => savedEntries.map(e => parseISODate(e.isoDate).toDateString()), [savedEntries]);
 
   const renderView = () => {
     if (!user) {
@@ -344,44 +368,73 @@ const App: React.FC = () => {
 
     switch (view) {
       case 'calendar':
-        return <CalendarView savedEntries={savedEntries} t={t} lang={language}/>;
+        return <CalendarView savedEntries={savedEntries} onSelectEntry={handleViewEntry} t={t} lang={language}/>;
       case 'overview':
         return <Overview savedEntries={savedEntries} t={t} lang={language} />;
       case 'create':
       default:
+        const entryToShow = viewingEntry ? [viewingEntry] : diaryEntries;
+        
+        if (isLoading) {
+             return (
+              <div className="mt-8 text-center flex flex-col items-center">
+                <div className="w-16 h-16 border-4 border-cyan-500 dark:border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-4 text-slate-700 dark:text-slate-300 text-lg animate-pulse">{t('loadingDiary')}</p>
+                <p className="text-slate-500 dark:text-slate-400">{t('loadingDiarySub')}</p>
+              </div>
+            );
+        }
+
+        if (entryToShow) {
+            return (
+              <div className="mt-8 animate-fade-in-up">
+                 <div className="flex justify-end mb-4">
+                    <button onClick={resetToCreate} className="text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300">
+                      {t('newAnalysis')}
+                    </button>
+                  </div>
+                <DiaryDisplay
+                  entries={entryToShow}
+                  onSave={handleSaveEntry}
+                  isSaving={isSaving}
+                  savedDates={savedDates}
+                  t={t}
+                />
+              </div>
+            );
+        }
+
         return (
           <>
-            {!diaryEntries && !isLoading && (
-               <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 mb-8">
-                <div className="flex items-start gap-4 mb-4">
-                  <InfoIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400 flex-shrink-0 mt-1" />
-                  <div>
-                      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{t('howItWorks')}</h2>
-                      <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{t('howToPrompt')}</p>
-                      <ol className="list-decimal list-inside text-slate-600 dark:text-slate-400 text-sm space-y-2 mt-2">
-                        <li>
-                          <strong>{t('method1')}</strong><br/>
-                          <span dangerouslySetInnerHTML={{ __html: t('method1Desc') }} />
-                        </li>
-                        <li>
-                          <strong>{t('method2')}</strong><br/>
-                          <span dangerouslySetInnerHTML={{ __html: t('method2Desc') }} />
-                        </li>
-                        <li>
-                          <strong>{t('analyzeStep')}</strong> {t('analyzeStepDesc')}
-                        </li>
-                      </ol>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <PrivacyIcon className="w-6 h-6 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-1" />
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{t('privacyNote')}</h2>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm">{t('privacyDesc')}</p>
-                  </div>
+            <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 mb-8">
+              <div className="flex items-start gap-4 mb-4">
+                <InfoIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400 flex-shrink-0 mt-1" />
+                <div>
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{t('howItWorks')}</h2>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{t('howToPrompt')}</p>
+                    <ol className="list-decimal list-inside text-slate-600 dark:text-slate-400 text-sm space-y-2 mt-2">
+                      <li>
+                        <strong>{t('method1')}</strong><br/>
+                        <span dangerouslySetInnerHTML={{ __html: t('method1Desc') }} />
+                      </li>
+                      <li>
+                        <strong>{t('method2')}</strong><br/>
+                        <span dangerouslySetInnerHTML={{ __html: t('method2Desc') }} />
+                      </li>
+                      <li>
+                        <strong>{t('analyzeStep')}</strong> {t('analyzeStepDesc')}
+                      </li>
+                    </ol>
                 </div>
               </div>
-            )}
+              <div className="flex items-start gap-4">
+                <PrivacyIcon className="w-6 h-6 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-1" />
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{t('privacyNote')}</h2>
+                  <p className="text-slate-600 dark:text-slate-400 text-sm">{t('privacyDesc')}</p>
+                </div>
+              </div>
+            </div>
             
             <HistoryInput onAnalyze={handleAnalyze} isLoading={isLoading} t={t} />
             
@@ -390,38 +443,13 @@ const App: React.FC = () => {
                 <p><span className="font-bold">{t('error')}:</span> {error}</p>
               </div>
             )}
-
-            {isLoading && (
-              <div className="mt-8 text-center flex flex-col items-center">
-                <div className="w-16 h-16 border-4 border-cyan-500 dark:border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-                <p className="mt-4 text-slate-700 dark:text-slate-300 text-lg animate-pulse">{t('loadingDiary')}</p>
-                <p className="text-slate-500 dark:text-slate-400">{t('loadingDiarySub')}</p>
-              </div>
-            )}
-
-            {diaryEntries && !isLoading && (
-              <div className="mt-8 animate-fade-in-up">
-                 <div className="flex justify-end mb-4">
-                    <button onClick={resetToCreate} className="text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300">
-                      {t('newAnalysis')}
-                    </button>
-                  </div>
-                <DiaryDisplay
-                  entries={diaryEntries}
-                  onSave={handleSaveEntry}
-                  isSaving={isSaving}
-                  savedDates={savedDates}
-                  t={t}
-                />
-              </div>
-            )}
           </>
         );
     }
   };
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-white font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8 transition-colors duration-300">
+    <div className={`bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-100 font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8 transition-colors duration-300`}>
       <div className="w-full max-w-5xl mx-auto">
         <Header
           user={user}

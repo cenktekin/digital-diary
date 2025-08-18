@@ -14,9 +14,13 @@ const scoreAreaOptions: ScoreArea[] = ['Productivity', 'Learning', 'Discovery', 
 const diaryEntrySchema = {
   type: Type.OBJECT,
   properties: {
+    isoDate: {
+        type: Type.STRING,
+        description: "The date of the analyzed history in ISO 8601 format (YYYY-MM-DD)."
+    },
     date: {
       type: Type.STRING,
-      description: "The date of the analyzed history data. Format it based on the requested language's locale. For example: 'July 25, 2024, Thursday' for English, or '25 Temmuz 2024, Perşembe' for Turkish."
+      description: "The date of the analyzed history data. Format it based on the requested language's locale. For example: 'July 25, 2024, Thursday' for English, or '25 Temmuz 2024, Perşembe' for Turkish. This should correspond to the isoDate."
     },
     title: {
       type: Type.STRING,
@@ -79,7 +83,7 @@ const diaryEntrySchema = {
         }
     }
   },
-  required: ["date", "title", "summary", "highlights", "categories", "scores"]
+  required: ["isoDate", "date", "title", "summary", "highlights", "categories", "scores"]
 };
 
 const responseSchema = {
@@ -149,11 +153,12 @@ const getPrompts = (lang: 'tr' | 'en') => {
             Instructions:
             1.  Carefully examine the data. If there are multiple days in the data, create a separate diary object for each day. Clearly distinguish the dates.
             2.  For each day:
-                a. Ignore repetitive and irrelevant entries (ads, redirects, CDNs, etc.).
-                b. Group similar activities (e.g., multiple GitHub visits as 'Software Development', different news sites as 'News').
-                c. Narrate the daily summary by dividing it into sections based on the timeline (morning, noon, evening).
-                d. Identify the 3-4 most important activities of the day as 'highlights' and assign an appropriate icon name.
-                e. Analyze the activities and score them out of 5 in the areas of 'Productivity', 'Learning', 'Discovery', and 'Entertainment', and write a short, constructive 'feedback' for each. The 'area' field must be one of these exact English words.
+                a. Determine the date and return it in two fields: 'isoDate' (format 'YYYY-MM-DD') and 'date' (localized format for ${targetLanguage}).
+                b. Ignore repetitive and irrelevant entries (ads, redirects, CDNs, etc.).
+                c. Group similar activities (e.g., multiple GitHub visits as 'Software Development', different news sites as 'News').
+                d. Narrate the daily summary by dividing it into sections based on the timeline (morning, noon, evening).
+                e. Identify the 3-4 most important activities of the day as 'highlights' and assign an appropriate icon name.
+                f. Analyze the activities and score them out of 5 in the areas of 'Productivity', 'Learning', 'Discovery', and 'Entertainment', and write a short, constructive 'feedback' for each. The 'area' field must be one of these exact English words.
             3.  Return the response in the requested JSON format, in ${targetLanguage}. If there are multiple days, return an array of JSON objects.
         `,
         overall: `
