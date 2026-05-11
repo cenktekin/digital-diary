@@ -14,7 +14,7 @@ Yapay zeka destekli bu uygulama, tarayıcı geçmişinizi analiz ederek günlük
 ## 🚀 Temel Özellikler
 
 - **Tarayıcı Geçmişi Analizi**: `.csv` dosyası veya kopyala-yapıştır metin ile tarayıcı geçmişinizi kolayca yükleyin. Proje, tarayıcı geçmişini dışa aktarmak için kullanışlı bir Python aracı içerir.
-- **Yapay Zeka Destekli Özet**: Google Gemini modeli, verilerinizi analiz ederek gününüzü zaman akışına (sabah, öğlen, akşam) göre özetler.
+- **Yapay Zeka Destekli Özet**: Google Gemini veya OpenRouter (Claude, Llama vb.) modelleri ile verilerinizi analiz ederek gününüzü zaman akışına (sabah, öğlen, akşam) göre özetler.
 - **Detaylı Raporlama**:
   - Günün önemli anları ve ikonlarla zenginleştirilmiş aktiviteler.
   - Aktivite kategorilerine göre dağılım grafiği.
@@ -41,9 +41,26 @@ Yapay zeka destekli bu uygulama, tarayıcı geçmişinizi analiz ederek günlük
 ## 💻 Kullanılan Teknolojiler
 
 - **Frontend**: React, TypeScript, Tailwind CSS
-- **AI**: Google Gemini API (`@google/genai`)
+- **AI**: Google Gemini API / OpenRouter (100+ model desteği)
 - **Grafikler**: Recharts
 - **Yardımcı Kütüphaneler**: html-to-image
+
+## 🤖 AI Provider Yapılandırması
+
+Uygulama, birden fazla AI sağlayıcısını destekler. `.env` dosyasında `AI_PROVIDER` değişkenini ayarlayarak geçiş yapabilirsiniz:
+
+```bash
+# Google Gemini (varsayılan)
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+
+# OpenRouter (Claude, Llama, Mistral vb.)
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=your_key_here
+OPENROUTER_MODEL=google/gemini-2.5-flash  # veya anthropic/claude-3.5-sonnet vb.
+```
+
+Daha fazla bilgi için `.env.example` dosyasına bakın.
 
 ## 🔮 Gelecek Planları
 
@@ -60,4 +77,4 @@ Bu proje [Cenk Tekin](https://github.com/cenktekin) tarafından geliştirilmişt
 
 ## 🔒 Gizlilik
 
-Gizliliğiniz bizim için önemlidir. Girdiğiniz veriler, analiz amacıyla Google Gemini API'sine gönderilir. Mevcut sürümde **Google Entegrasyonu** simüle edilmiştir ve verileriniz sunucularımızda **saklanmaz**, sadece sizin tarayıcınızın yerel depolama alanında tutulur.
+Gizliliğiniz bizim için önemlidir. Girdiğiniz veriler, analiz amacıyla seçtiğiniz AI sağlayıcısına (Google Gemini veya OpenRouter) gönderilir. Verileriniz sunucularımızda **saklanmaz**, sadece sizin tarayıcınızın yerel depolama alanında tutulur.
