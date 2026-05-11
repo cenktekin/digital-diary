@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { DiaryEntry } from './types';
-import { analyzeBrowsingHistory } from './services/geminiService';
+import { getAIProvider } from './services/aiProvider';
 import * as storage from './services/storageService';
 
 import Header from './components/Header';
@@ -286,7 +286,7 @@ const App: React.FC = () => {
     setViewingEntry(null);
 
     try {
-      const result = await analyzeBrowsingHistory(historyData, language);
+      const result = await getAIProvider().analyzeBrowsingHistory(historyData, language);
       setDiaryEntries(result);
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : t('errorUnknown');

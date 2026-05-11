@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { toPng } from 'html-to-image';
 import { DiaryEntry, OverallAnalysis, Persona } from '../types';
-import { analyzeOverallHabits } from '../services/geminiService';
+import { getAIProvider } from '../services/aiProvider';
 import { AnalyzeIcon, LoadingIcon, DiscoveryIcon, CodeIcon, LearnIcon, SocialIcon, EntertainmentIcon, OtherIcon, ChartBarIcon, DownloadIcon } from './icons';
 
 interface OverviewProps {
@@ -44,7 +44,7 @@ const Overview: React.FC<OverviewProps> = ({ savedEntries, t, lang }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await analyzeOverallHabits(savedEntries, lang);
+      const result = await getAIProvider().analyzeOverallHabits(savedEntries, lang);
       setAnalysis(result);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : t('errorUnknown');
